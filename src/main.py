@@ -26,6 +26,8 @@ def draw_light_effect(screen, player_screen_pos, radius=150):
 
     screen.blit(darkness, (0, 0))
 
+MENU_MUSIC = "bgm/puzzle-game-bright-casual-video-game-music-249202.mp3"
+GAME_MUSIC = "bgm/background_music.mp3"
 
 def main():
     pygame.init()
@@ -38,16 +40,21 @@ def main():
     pygame.display.set_icon(ikon)
 
 
-    pygame.mixer.music.load("bgm/background_music.mp3")
-    pygame.mixer.music.play(-1)
 
+
+    pygame.mixer.music.load(MENU_MUSIC)
+    pygame.mixer.music.play(-1)
 
     # Show the menu
     menu = Menu(screen)
     menu_result = menu.run()
     if menu_result == "quit":
         pygame.quit()
-        return
+    
+    pygame.mixer.music.stop()
+    pygame.mixer.music.load(GAME_MUSIC)
+    pygame.mixer.music.play(-1)
+
 
 
     # Game begins here
