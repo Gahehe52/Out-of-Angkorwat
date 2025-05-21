@@ -4,6 +4,7 @@ from camera import Camera
 from background import Background
 from menu import Menu
 from maze import Maze
+from hpbar import HPBar
 
 # Constants
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -68,6 +69,8 @@ def main():
 
     player = Player(50, 50)
     all_sprites.add(player)
+
+    hp_bar = HPBar(10,10)
     # Collision Objects
     collidable_objects = pygame.sprite.Group()
 
@@ -105,6 +108,8 @@ def main():
 
         player_screen_pos = camera.apply(player).center
         draw_light_effect(screen, player_screen_pos, radius=150)
+
+        hp_bar.draw(screen)
 
         pygame.display.flip()
 
