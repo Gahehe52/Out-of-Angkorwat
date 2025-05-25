@@ -11,6 +11,9 @@ class Player(pygame.sprite.Sprite):
         self.frame_rate = 0.1
         self.image = self.frames[self.direction][self.current_frame]
         self.rect = self.image.get_rect(topleft=(x, y))
+        self.footsteep_sound = pygame.mixer.Sound("assets/sfx/footstep.wav")
+        self.footsteep_sound.set_volume(0.5)
+        self.footsteep_playing = False
 
         # Define a smaller collision rect (hitbox)
         self.hitbox = pygame.Rect(self.rect.left + 40, self.rect.top + 32, 16, 32)  # tweak these values
@@ -19,6 +22,9 @@ class Player(pygame.sprite.Sprite):
         self.health = 100  # Inisialisasi kesehatan
         self.last_damage_time = 0
         self.damage_cooldown = 1000  # 1 detik cooldown (dalam milidetik)
+        self.invincible = False
+        self.invincible_duration = 3000  # durasi kedap-kedip dalam ms
+        self.invincible_timer = 0
 
     def load_frames(self, folder):
         self.frames = {
@@ -73,9 +79,31 @@ class Player(pygame.sprite.Sprite):
 
         if dx != 0 or dy != 0:
             self.animate(dt)
+            if not self.footsteep_playing :
+                self.footsteep_sound.play(-1)
+                self.footsteep_playing = True
         else:
             self.current_frame = 0
             self.image = self.frames[self.direction][self.current_frame]
+            if self.footsteep_playing:
+                self.footsteep_sound.stop()
+                self.footsteep_playing = False
+                # Handle invincibility timer
+        current_time = pygame.time.get_ticks()
+
+        if self.invincible and current_time - self.invincible_timer >= self.invincible_duration:
+            self.invincible = False
+
+        # Kedap-kedip saat invincible
+        if self.invincible:
+            # Flicker effect: tampilkan setiap 100ms
+            if (current_time // 100) % 2 == 0:
+                self.image.set_alpha(0)  # tidak terlihat
+            else:
+                self.image.set_alpha(255)  # terlihat
+        else:
+            self.image.set_alpha(255)  # normal kembali
+
 
     def animate(self, dt):
         self.animation_timer += dt
@@ -86,10 +114,14 @@ class Player(pygame.sprite.Sprite):
 
     # Metode untuk menangani damage
     def take_damage(self, damage_amount, current_time, hp_bar):
+        if self.invincible :
+            return
         if current_time - self.last_damage_time >= self.damage_cooldown:
             self.health -= damage_amount
             hp_bar.reduce(damage_amount)  # Sinkronkan dengan HPBar
             self.last_damage_time = current_time
+            self.invincible =True
+            self.invincible_timer = current_time
             if self.health <= 0:
                 self.health = 0
                 print("Game Over!")  # Placeholder untuk logika game over
