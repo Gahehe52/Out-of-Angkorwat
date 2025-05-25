@@ -7,11 +7,11 @@ from maze import Maze
 from hpbar import HPBar
 
 # Constants
-SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
+INTERNAL_WIDTH, INTERNAL_HEIGHT = 800, 600
 FPS = 60
 
-def draw_light_effect(screen, player_screen_pos, radius=150):
-    width, height = screen.get_size()
+def draw_light_effect(surface, player_screen_pos, radius=150):
+    width, height = surface.get_size()
     darkness = pygame.Surface((width, height), flags=pygame.SRCALPHA)
     darkness.fill((0, 0, 0, 240))
 
@@ -23,17 +23,16 @@ def draw_light_effect(screen, player_screen_pos, radius=150):
     light_pos = (player_screen_pos[0] - radius, player_screen_pos[1] - radius)
     darkness.blit(light_mask, light_pos, special_flags=pygame.BLEND_RGBA_SUB)
 
-    screen.blit(darkness, (0, 0))
+    surface.blit(darkness, (0, 0))
 
 MENU_MUSIC = "bgm/puzzle-game-bright-casual-video-game-music-249202.mp3"
 GAME_MUSIC = "bgm/background_music.mp3"
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    display_surface = pygame.display.set_mode((INTERNAL_WIDTH, INTERNAL_HEIGHT), pygame.RESIZABLE)
     pygame.display.set_caption("Out of Angkorwat")
     clock = pygame.time.Clock()
-
     ikon = pygame.image.load("icon.png")
     pygame.display.set_icon(ikon)
 
@@ -41,7 +40,7 @@ def main():
     pygame.mixer.music.play(-1)
 
     while True:
-        menu = Menu(screen)
+        menu = Menu(display_surface)
         menu_result = menu.run()
         if menu_result == "quit":
             pygame.quit()
@@ -50,6 +49,9 @@ def main():
         pygame.mixer.music.stop()
         pygame.mixer.music.load(GAME_MUSIC)
         pygame.mixer.music.play(-1)
+
+        # Setup for fixed FOV surface
+        internal_surface = pygame.Surface((INTERNAL_WIDTH, INTERNAL_HEIGHT))
 
         all_sprites = pygame.sprite.Group()
         background_group = pygame.sprite.Group()
@@ -63,7 +65,7 @@ def main():
         hp_bar = HPBar(10, 10)
         collidable_objects = pygame.sprite.Group()
 
-        camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+        camera = Camera(INTERNAL_WIDTH, INTERNAL_HEIGHT)
 
         tile_size = 64
         wall_img = pygame.image.load("assets/tiles/wall.png").convert_alpha()
@@ -84,13 +86,11 @@ def main():
 
             player.update(dt, collidable_objects)
 
-            # Update traps
             for spike in spikes:
                 spike.update(current_time)
             for fire in fires:
                 fire.update(current_time)
 
-            # Trap damage
             for spike in pygame.sprite.spritecollide(player, spikes, False, collided=lambda s1, s2: s1.hitbox.colliderect(s2.rect)):
                 if spike.is_active():
                     player.take_damage(10, current_time, hp_bar)
@@ -99,61 +99,71 @@ def main():
                 if fire.is_active():
                     player.take_damage(20, current_time, hp_bar)
 
-            # Game Over
             if player.health <= 0:
                 game_over_text = pygame.font.SysFont(None, 48).render("Game Over!", True, (255, 0, 0))
-                screen.blit(game_over_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2))
+                internal_surface.blit(game_over_text, (INTERNAL_WIDTH // 2 - 100, INTERNAL_HEIGHT // 2))
+                scaled = pygame.transform.scale(internal_surface, display_surface.get_size())
+                display_surface.blit(scaled, (0, 0))
                 pygame.display.flip()
                 pygame.time.wait(2000)
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load(MENU_MUSIC)
                 pygame.mixer.music.play(-1)
-                menu_result = menu.run()
-                if menu_result == "quit":
-                    pygame.quit()
-                    return
-                running = False
-                continue
+                break
 
-            # Check win condition
             if player.rect.left > exit_rect.right:
                 win_text = pygame.font.SysFont(None, 48).render("You Escaped!", True, (0, 255, 0))
-                screen.blit(win_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2))
+                internal_surface.blit(win_text, (INTERNAL_WIDTH // 2 - 100, INTERNAL_HEIGHT // 2))
+                scaled = pygame.transform.scale(internal_surface, display_surface.get_size())
+                display_surface.blit(scaled, (0, 0))
                 pygame.display.flip()
                 pygame.time.wait(2000)
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load(MENU_MUSIC)
                 pygame.mixer.music.play(-1)
-                menu_result = menu.run()
-                if menu_result == "quit":
-                    pygame.quit()
-                    return
-                running = False
-                continue
-
+                break
 
             camera.update(player)
 
-            screen.fill((30, 30, 30))
+            internal_surface.fill((30, 30, 30))
 
             for bg in background_group:
-                screen.blit(bg.image, camera.apply(bg))
+                internal_surface.blit(bg.image, camera.apply(bg))
             for wall in collidable_objects:
-                screen.blit(wall.image, camera.apply(wall))
+                internal_surface.blit(wall.image, camera.apply(wall))
             for spike in spikes:
-                spike.draw(screen, camera.apply(spike).topleft)
+                spike.draw(internal_surface, camera.apply(spike).topleft)
             for fire in fires:
-                fire.draw(screen, camera.apply(fire).topleft)
-
+                fire.draw(internal_surface, camera.apply(fire).topleft)
             for sprite in all_sprites:
-                screen.blit(sprite.image, camera.apply(sprite))
+                internal_surface.blit(sprite.image, camera.apply(sprite))
 
             player_screen_pos = camera.apply(player).center
-            draw_light_effect(screen, player_screen_pos, radius=150)
+            draw_light_effect(internal_surface, player_screen_pos, radius=150)
 
-            hp_bar.draw(screen)
+            hp_bar.draw(internal_surface)
 
+            # Scale the internal surface to the actual display surface
+            # Get window/display size
+            win_w, win_h = display_surface.get_size()
+
+            # Calculate scaling factor to preserve aspect ratio
+            scale = min(win_w / INTERNAL_WIDTH, win_h / INTERNAL_HEIGHT)
+
+            # Calculate new scaled size
+            scaled_w = int(INTERNAL_WIDTH * scale)
+            scaled_h = int(INTERNAL_HEIGHT * scale)
+
+            # Center the scaled surface on the screen
+            x_offset = (win_w - scaled_w) // 2
+            y_offset = (win_h - scaled_h) // 2
+
+            # Scale and blit
+            scaled_surface = pygame.transform.scale(internal_surface, (scaled_w, scaled_h))
+            display_surface.fill((0, 0, 0))  # Fill background with black to avoid artifacts
+            display_surface.blit(scaled_surface, (x_offset, y_offset))
             pygame.display.flip()
+
 
 if __name__ == "__main__":
     main()
