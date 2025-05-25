@@ -13,15 +13,13 @@ FPS = 60
 def draw_light_effect(screen, player_screen_pos, radius=150):
     width, height = screen.get_size()
     darkness = pygame.Surface((width, height), flags=pygame.SRCALPHA)
-    darkness.fill((0, 0, 0, 240))  # Fully dark to start
+    darkness.fill((0, 0, 0, 240))
 
-    # Create gradient light mask
     light_mask = pygame.Surface((radius * 2, radius * 2), flags=pygame.SRCALPHA)
     for r in range(radius, 0, -1):
-        alpha = int(255 * (1 - (r / radius)))  # transparent center to opaque edge
+        alpha = int(255 * (1 - (r / radius)))
         pygame.draw.circle(light_mask, (0, 0, 0, alpha), (radius, radius), r)
 
-    # Blit light mask onto the darkness at player's screen position
     light_pos = (player_screen_pos[0] - radius, player_screen_pos[1] - radius)
     darkness.blit(light_mask, light_pos, special_flags=pygame.BLEND_RGBA_SUB)
 
@@ -36,84 +34,126 @@ def main():
     pygame.display.set_caption("Out of Angkorwat")
     clock = pygame.time.Clock()
 
-
     ikon = pygame.image.load("icon.png")
     pygame.display.set_icon(ikon)
-
-
-
 
     pygame.mixer.music.load(MENU_MUSIC)
     pygame.mixer.music.play(-1)
 
-    # Show the menu
-    menu = Menu(screen)
-    menu_result = menu.run()
-    if menu_result == "quit":
-        pygame.quit()
-    
-    pygame.mixer.music.stop()
-    pygame.mixer.music.load(GAME_MUSIC)
-    pygame.mixer.music.play(-1)
+    while True:
+        menu = Menu(screen)
+        menu_result = menu.run()
+        if menu_result == "quit":
+            pygame.quit()
+            return
 
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load(GAME_MUSIC)
+        pygame.mixer.music.play(-1)
 
+        all_sprites = pygame.sprite.Group()
+        background_group = pygame.sprite.Group()
 
-    # Game begins here
-    all_sprites = pygame.sprite.Group()
-    background_group = pygame.sprite.Group()
+        background = Background("assets/tiles/floor.png", 1600, 1600, 64)
+        background_group.add(background)
 
+        player = Player(50, 50)
+        all_sprites.add(player)
 
-    background = Background("assets/tiles/floor.png", 1600, 1600, 64)
-    background_group.add(background)
+        hp_bar = HPBar(10, 10)
+        collidable_objects = pygame.sprite.Group()
 
+        camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
 
-    player = Player(50, 50)
-    all_sprites.add(player)
+        tile_size = 64
+        wall_img = pygame.image.load("assets/tiles/wall.png").convert_alpha()
+        wall_img = pygame.transform.scale(wall_img, (tile_size, tile_size))
 
-    hp_bar = HPBar(10,10)
-    # Collision Objects
-    collidable_objects = pygame.sprite.Group()
+        maze = Maze(25, 25, tile_size, wall_img)
+        collidable_objects, spikes, fires, exit_rect = maze.create_walls()
 
+        running = True
+        while running:
+            dt = clock.tick(FPS) / 1000
+            current_time = pygame.time.get_ticks()
 
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    return
 
+            player.update(dt, collidable_objects)
 
-    camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+            # Update traps
+            for spike in spikes:
+                spike.update(current_time)
+            for fire in fires:
+                fire.update(current_time)
 
-    tile_size = 64
-    wall_img = pygame.image.load("assets/tiles/wall.png").convert_alpha()
-    wall_img = pygame.transform.scale(wall_img, (tile_size, tile_size))
-    
-    maze = Maze(25, 25, tile_size, wall_img)
-    collidable_objects = maze.create_walls()
+            # Trap damage
+            for spike in pygame.sprite.spritecollide(player, spikes, False, collided=lambda s1, s2: s1.hitbox.colliderect(s2.rect)):
+                if spike.is_active():
+                    player.take_damage(10, current_time, hp_bar)
 
-    running = True
-    while running:
-        dt = clock.tick(FPS) / 1000
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            for fire in pygame.sprite.spritecollide(player, fires, False, collided=lambda s1, s2: s1.hitbox.colliderect(s2.rect)):
+                if fire.is_active():
+                    player.take_damage(20, current_time, hp_bar)
+
+            # Game Over
+            if player.health <= 0:
+                game_over_text = pygame.font.SysFont(None, 48).render("Game Over!", True, (255, 0, 0))
+                screen.blit(game_over_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2))
+                pygame.display.flip()
+                pygame.time.wait(2000)
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(MENU_MUSIC)
+                pygame.mixer.music.play(-1)
+                menu_result = menu.run()
+                if menu_result == "quit":
+                    pygame.quit()
+                    return
                 running = False
+                continue
 
-        player.update(dt, collidable_objects)
-        camera.update(player)
+            # Check win condition
+            if player.rect.left > exit_rect.right:
+                win_text = pygame.font.SysFont(None, 48).render("You Escaped!", True, (0, 255, 0))
+                screen.blit(win_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2))
+                pygame.display.flip()
+                pygame.time.wait(2000)
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(MENU_MUSIC)
+                pygame.mixer.music.play(-1)
+                menu_result = menu.run()
+                if menu_result == "quit":
+                    pygame.quit()
+                    return
+                running = False
+                continue
 
-        screen.fill((30, 30, 30))
 
-        for bg in background_group:
-            screen.blit(bg.image, camera.apply(bg))
-        for wall in collidable_objects:
-            screen.blit(wall.image, camera.apply(wall))
+            camera.update(player)
 
-        for sprite in all_sprites:
-            screen.blit(sprite.image, camera.apply(sprite))
+            screen.fill((30, 30, 30))
 
-        player_screen_pos = camera.apply(player).center
-        draw_light_effect(screen, player_screen_pos, radius=150)
+            for bg in background_group:
+                screen.blit(bg.image, camera.apply(bg))
+            for wall in collidable_objects:
+                screen.blit(wall.image, camera.apply(wall))
+            for spike in spikes:
+                spike.draw(screen, camera.apply(spike).topleft)
+            for fire in fires:
+                fire.draw(screen, camera.apply(fire).topleft)
 
-        hp_bar.draw(screen)
+            for sprite in all_sprites:
+                screen.blit(sprite.image, camera.apply(sprite))
 
-        pygame.display.flip()
+            player_screen_pos = camera.apply(player).center
+            draw_light_effect(screen, player_screen_pos, radius=150)
 
-    pygame.quit()
+            hp_bar.draw(screen)
+
+            pygame.display.flip()
 
 if __name__ == "__main__":
     main()

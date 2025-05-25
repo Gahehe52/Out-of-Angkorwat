@@ -12,11 +12,13 @@ class Player(pygame.sprite.Sprite):
         self.image = self.frames[self.direction][self.current_frame]
         self.rect = self.image.get_rect(topleft=(x, y))
 
-
         # Define a smaller collision rect (hitbox)
         self.hitbox = pygame.Rect(self.rect.left + 40, self.rect.top + 32, 16, 32)  # tweak these values
         self.speed = 200
-
+        # Tambahkan atribut untuk kesehatan dan damage
+        self.health = 100  # Inisialisasi kesehatan
+        self.last_damage_time = 0
+        self.damage_cooldown = 1000  # 1 detik cooldown (dalam milidetik)
 
     def load_frames(self, folder):
         self.frames = {
@@ -39,7 +41,6 @@ class Player(pygame.sprite.Sprite):
         keys = pygame.key.get_pressed()
         dx = dy = 0
 
-
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             dx = -self.speed * dt
             self.direction = "left"
@@ -53,7 +54,6 @@ class Player(pygame.sprite.Sprite):
             dy = self.speed * dt
             self.direction = "down"
 
-
         # Move and check collision
         self.rect.x += dx
         self.hitbox.x += dx
@@ -63,7 +63,6 @@ class Player(pygame.sprite.Sprite):
                     self.rect.x -= dx
                     self.hitbox.x -= dx
 
-
         self.rect.y += dy
         self.hitbox.y += dy
         if collisions:
@@ -72,14 +71,11 @@ class Player(pygame.sprite.Sprite):
                     self.rect.y -= dy
                     self.hitbox.y -= dy
 
-
         if dx != 0 or dy != 0:
             self.animate(dt)
         else:
             self.current_frame = 0
             self.image = self.frames[self.direction][self.current_frame]
-
-
 
     def animate(self, dt):
         self.animation_timer += dt
@@ -88,3 +84,13 @@ class Player(pygame.sprite.Sprite):
             self.current_frame = (self.current_frame + 1) % len(self.frames[self.direction])
             self.image = self.frames[self.direction][self.current_frame]
 
+    # Metode untuk menangani damage
+    def take_damage(self, damage_amount, current_time, hp_bar):
+        if current_time - self.last_damage_time >= self.damage_cooldown:
+            self.health -= damage_amount
+            hp_bar.reduce(damage_amount)  # Sinkronkan dengan HPBar
+            self.last_damage_time = current_time
+            if self.health <= 0:
+                self.health = 0
+                print("Game Over!")  # Placeholder untuk logika game over
+            print(f"Player health: {self.health}")
