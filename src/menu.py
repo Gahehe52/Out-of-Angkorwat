@@ -34,7 +34,7 @@ class Menu:
         self.option_rects = []
         self.checkbox_rects = {}
         self.last_hover_index = None
-        self.hover_sound = pygame.mixer.Sound("bgm/sfx/ButtonClick.mp3")
+        self.hover_sound = pygame.mixer.Sound("assets/sfx/ButtonClick.mp3")
 
         self.is_muted = False
         self.is_fullscreen = False
