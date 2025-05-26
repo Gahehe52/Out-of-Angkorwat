@@ -4,6 +4,7 @@ class Menu:
     def __init__(self, screen, font_path=None):
         self.screen = screen
         self.internal_resolution = (800, 600)
+        self.internal_surface = pygame.Surface(self.internal_resolution)
         self.font = pygame.font.Font(font_path, 36) if font_path else pygame.font.SysFont("Arial", 36)
         self.running = True
         self.state = "main"
@@ -72,26 +73,30 @@ class Menu:
                 )
                 self.checkbox_rects[option] = checkbox_rect
 
-    def draw(self):
-        scaled_bg = pygame.transform.scale(self.bg_image, self.screen.get_size())
-        self.screen.blit(scaled_bg, (0, 0))
-        mouse_pos = pygame.mouse.get_pos()
-        hover_index = None
+    def get_internal_mouse_pos(self, mouse_pos):
+        screen_w, screen_h = self.screen.get_size()
+        internal_w, internal_h = self.internal_resolution
+        scale = min(screen_w / internal_w, screen_h / internal_h)
+        scaled_w, scaled_h = internal_w * scale, internal_h * scale
+        x_offset = (screen_w - scaled_w) / 2
+        y_offset = (screen_h - scaled_h) / 2
 
-        scale_x = self.screen.get_width() / self.internal_resolution[0]
-        scale_y = self.screen.get_height() / self.internal_resolution[1]
+        x = (mouse_pos[0] - x_offset) / scale
+        y = (mouse_pos[1] - y_offset) / scale
+        return int(x), int(y)
+
+    def draw(self):
+        # Draw background
+        self.internal_surface.blit(self.bg_image, (0, 0))
+        mouse_pos = pygame.mouse.get_pos()
+        internal_mouse_pos = self.get_internal_mouse_pos(mouse_pos)
+        hover_index = None
 
         for i, option in enumerate(self.get_current_options()):
             img = self.button_images[option].copy()
+            rect = self.option_rects[i]
 
-            # Scale rect for interaction
-            display_rect = self.option_rects[i].copy()
-            display_rect.x = int(display_rect.x * scale_x)
-            display_rect.y = int(display_rect.y * scale_y)
-            display_rect.width = int(display_rect.width * scale_x)
-            display_rect.height = int(display_rect.height * scale_y)
-
-            if display_rect.collidepoint(mouse_pos):
+            if rect.collidepoint(internal_mouse_pos):
                 hover_index = i
                 if self.last_hover_index != i:
                     self.hover_sound.play()
@@ -99,25 +104,32 @@ class Menu:
                 overlay.fill((80, 80, 80, 80))
                 img.blit(overlay, (0, 0))
 
-            self.screen.blit(pygame.transform.scale(img, (display_rect.width, display_rect.height)), (display_rect.x, display_rect.y))
+            self.internal_surface.blit(img, rect.topleft)
 
             if option in self.checkbox_rects:
                 checked = self.is_muted if option == "volume" else self.is_fullscreen
                 checkbox_rect = self.checkbox_rects[option]
-                checkbox_rect_display = pygame.Rect(
-                    int(checkbox_rect.x * scale_x),
-                    int(checkbox_rect.y * scale_y),
-                    int(checkbox_rect.width * scale_x),
-                    int(checkbox_rect.height * scale_y)
-                )
-                pygame.draw.rect(self.screen, (200, 200, 200), checkbox_rect_display)
-                pygame.draw.rect(self.screen, (0, 0, 0), checkbox_rect_display, 2)
+                pygame.draw.rect(self.internal_surface, (200, 200, 200), checkbox_rect)
+                pygame.draw.rect(self.internal_surface, (0, 0, 0), checkbox_rect, 2)
                 if checked:
                     check = self.font.render("✓", True, (0, 0, 0))
-                    check_rect = check.get_rect(center=checkbox_rect_display.center)
-                    self.screen.blit(check, check_rect)
+                    check_rect = check.get_rect(center=checkbox_rect.center)
+                    self.internal_surface.blit(check, check_rect)
 
         self.last_hover_index = hover_index
+
+        # Scale to screen with aspect ratio preserved
+        screen_w, screen_h = self.screen.get_size()
+        internal_w, internal_h = self.internal_resolution
+        scale = min(screen_w / internal_w, screen_h / internal_h)
+        scaled_w, scaled_h = int(internal_w * scale), int(internal_h * scale)
+
+        scaled_surface = pygame.transform.smoothscale(self.internal_surface, (scaled_w, scaled_h))
+        x_offset = (screen_w - scaled_w) // 2
+        y_offset = (screen_h - scaled_h) // 2
+
+        self.screen.fill((0, 0, 0))  # black bars
+        self.screen.blit(scaled_surface, (x_offset, y_offset))
         pygame.display.flip()
 
     def handle_input(self):
@@ -126,18 +138,10 @@ class Menu:
                 self.running = False
                 return "quit"
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                pos = event.pos
-                scale_x = self.screen.get_width() / self.internal_resolution[0]
-                scale_y = self.screen.get_height() / self.internal_resolution[1]
+                internal_pos = self.get_internal_mouse_pos(event.pos)
 
                 for key, rect in self.checkbox_rects.items():
-                    scaled_rect = pygame.Rect(
-                        int(rect.x * scale_x),
-                        int(rect.y * scale_y),
-                        int(rect.width * scale_x),
-                        int(rect.height * scale_y)
-                    )
-                    if scaled_rect.collidepoint(pos):
+                    if rect.collidepoint(internal_pos):
                         if key == "volume":
                             self.toggle_volume()
                         elif key == "fullscreen":
@@ -145,13 +149,7 @@ class Menu:
                         return None
 
                 for i, rect in enumerate(self.option_rects):
-                    scaled_rect = pygame.Rect(
-                        int(rect.x * scale_x),
-                        int(rect.y * scale_y),
-                        int(rect.width * scale_x),
-                        int(rect.height * scale_y)
-                    )
-                    if scaled_rect.collidepoint(pos):
+                    if rect.collidepoint(internal_pos):
                         selected_option = self.get_current_options()[i]
                         if self.state == "main":
                             if selected_option == "options":
