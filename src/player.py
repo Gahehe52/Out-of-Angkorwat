@@ -11,13 +11,13 @@ class Player(pygame.sprite.Sprite):
         self.frame_rate = 0.1
         self.image = self.frames[self.direction][self.current_frame]
         self.rect = self.image.get_rect(topleft=(x, y))
-        self.footsteep_sound = pygame.mixer.Sound("assets/sfx/footstep.wav")
+        self.footsteep_sound = pygame.mixer.Sound("bgm/sfx/footstep.wav")
         self.footsteep_sound.set_volume(0.5)
         self.footsteep_playing = False
 
         # Define a smaller collision rect (hitbox)
         self.hitbox = pygame.Rect(self.rect.left + 40, self.rect.top + 32, 16, 32)  # tweak these values
-        self.speed = 200
+        self.__speed = 200
         # Tambahkan atribut untuk kesehatan dan damage
         self.health = 100  # Inisialisasi kesehatan
         self.last_damage_time = 0
@@ -48,16 +48,16 @@ class Player(pygame.sprite.Sprite):
         dx = dy = 0
 
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            dx = -self.speed * dt
+            dx = -self.__speed * dt
             self.direction = "left"
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            dx = self.speed * dt
+            dx = self.__speed * dt
             self.direction = "right"
         elif keys[pygame.K_UP] or keys[pygame.K_w]:
-            dy = -self.speed * dt
+            dy = -self.__speed * dt
             self.direction = "up"
         elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            dy = self.speed * dt
+            dy = self.__speed * dt
             self.direction = "down"
 
         # Move and check collision

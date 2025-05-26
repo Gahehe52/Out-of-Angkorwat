@@ -38,6 +38,7 @@ def main():
 
     pygame.mixer.music.load(MENU_MUSIC)
     pygame.mixer.music.play(-1)
+    pygame.mixer.music.set_volume(0.5)
 
     while True:
         menu = Menu(display_surface)
