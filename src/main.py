@@ -26,7 +26,7 @@ def draw_light_effect(surface, player_screen_pos, radius=150):
     surface.blit(darkness, (0, 0))
 
 MENU_MUSIC = "bgm/puzzle-game-bright-casual-video-game-music-249202.mp3"
-GAME_MUSIC = "bgm/Beethoven_Virus.mp3"
+GAME_MUSIC = "bgm/background_music.mp3"
 
 def main():
     pygame.init()
