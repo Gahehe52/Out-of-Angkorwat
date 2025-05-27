@@ -26,7 +26,7 @@ def draw_light_effect(surface, player_screen_pos, radius=150):
     surface.blit(darkness, (0, 0))
 
 MENU_MUSIC = "bgm/puzzle-game-bright-casual-video-game-music-249202.mp3"
-GAME_MUSIC = "bgm/background_music.mp3"
+GAME_MUSIC = "bgm/Beethoven_Virus.mp3"
 
 def main():
     pygame.init()
@@ -110,6 +110,7 @@ def main():
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load(MENU_MUSIC)
                 pygame.mixer.music.play(-1)
+                player.footsteep_sound.stop()
                 break
 
             if player.rect.left > exit_rect.right:
@@ -122,6 +123,7 @@ def main():
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load(MENU_MUSIC)
                 pygame.mixer.music.play(-1)
+                player.footsteep_sound.stop()
                 break
 
             camera.update(player)
