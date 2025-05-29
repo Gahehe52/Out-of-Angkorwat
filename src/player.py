@@ -11,29 +11,26 @@ class Player(pygame.sprite.Sprite):
         self.frame_rate = 0.1
         self.image = self.frames[self.direction][self.current_frame]
         self.rect = self.image.get_rect(topleft=(x, y))
+
         self.footsteep_sound = pygame.mixer.Sound("bgm/sfx/footstep.wav")
         self.footsteep_sound.set_volume(0.5)
         self.footsteep_playing = False
 
-        # Define a smaller collision rect (hitbox)
-        self.hitbox = pygame.Rect(self.rect.left + 40, self.rect.top + 32, 16, 32)  # tweak these values
+        # Smaller hitbox
+        self.hitbox = pygame.Rect(self.rect.left + 40, self.rect.top + 32, 16, 32)
+
+        # Movement and health
         self.__speed = 200
-        # Tambahkan atribut untuk kesehatan dan damage
-        self.health = 100  # Inisialisasi kesehatan
-        self.last_damage_time = 0
-        self.damage_cooldown = 1000  # 1 detik cooldown (dalam milidetik)
+        self.health = 100
+
+        # Invincibility (replaces damage cooldown)
+        self.last_hit_time = 0
+        self.invincibility_duration = 1000  # ms
         self.invincible = False
-        self.invincible_duration = 3000  # durasi kedap-kedip dalam ms
         self.invincible_timer = 0
 
     def load_frames(self, folder):
-        self.frames = {
-            "down": [],
-            "up": [],
-            "left": [],
-            "right": []
-        }
-
+        self.frames = {"down": [], "up": [], "left": [], "right": []}
         for direction in self.frames:
             path = os.path.join(folder, direction)
             for filename in sorted(os.listdir(path)):
@@ -60,7 +57,7 @@ class Player(pygame.sprite.Sprite):
             dy = self.__speed * dt
             self.direction = "down"
 
-        # Move and check collision
+        # Move and handle collisions
         self.rect.x += dx
         self.hitbox.x += dx
         if collisions:
@@ -79,7 +76,7 @@ class Player(pygame.sprite.Sprite):
 
         if dx != 0 or dy != 0:
             self.animate(dt)
-            if not self.footsteep_playing :
+            if not self.footsteep_playing:
                 self.footsteep_sound.play(-1)
                 self.footsteep_playing = True
         else:
@@ -88,22 +85,17 @@ class Player(pygame.sprite.Sprite):
             if self.footsteep_playing:
                 self.footsteep_sound.stop()
                 self.footsteep_playing = False
-                # Handle invincibility timer
+
+        # Invincibility flicker
         current_time = pygame.time.get_ticks()
-
-        if self.invincible and current_time - self.invincible_timer >= self.invincible_duration:
-            self.invincible = False
-
-        # Kedap-kedip saat invincible
         if self.invincible:
-            # Flicker effect: tampilkan setiap 100ms
-            if (current_time // 100) % 2 == 0:
-                self.image.set_alpha(0)  # tidak terlihat
+            if current_time - self.invincible_timer >= self.invincibility_duration:
+                self.invincible = False
+                self.image.set_alpha(255)
             else:
-                self.image.set_alpha(255)  # terlihat
+                self.image.set_alpha(0 if (current_time // 100) % 2 == 0 else 255)
         else:
-            self.image.set_alpha(255)  # normal kembali
-
+            self.image.set_alpha(255)
 
     def animate(self, dt):
         self.animation_timer += dt
@@ -112,17 +104,16 @@ class Player(pygame.sprite.Sprite):
             self.current_frame = (self.current_frame + 1) % len(self.frames[self.direction])
             self.image = self.frames[self.direction][self.current_frame]
 
-    # Metode untuk menangani damage
     def take_damage(self, damage_amount, current_time, hp_bar):
-        if self.invincible :
-            return
-        if current_time - self.last_damage_time >= self.damage_cooldown:
+        if current_time - self.last_hit_time >= self.invincibility_duration:
             self.health -= damage_amount
-            hp_bar.reduce(damage_amount)  # Sinkronkan dengan HPBar
-            self.last_damage_time = current_time
-            self.invincible =True
+            hp_bar.reduce(damage_amount)
+            self.last_hit_time = current_time
+            self.invincible = True
             self.invincible_timer = current_time
+
             if self.health <= 0:
                 self.health = 0
-                print("Game Over!")  # Placeholder untuk logika game over
+                print("Game Over!")
+
             print(f"Player health: {self.health}")

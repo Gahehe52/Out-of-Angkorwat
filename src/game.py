@@ -5,6 +5,7 @@ from background import Background
 from menu import Menu
 from maze import Maze
 from hpbar import HPBar
+from boss_map import BossMap
 
 class Game:
     def __init__(self):
@@ -12,6 +13,7 @@ class Game:
         self.FPS = 60
         self.MENU_MUSIC = "bgm/puzzle-game-bright-casual-video-game-music-249202.mp3"
         self.GAME_MUSIC = "bgm/background_music.mp3"
+        self.BOSS_MUSIC = "bgm/boss_music.mp3"  # Add this file to your project
 
     def draw_light_effect(self, surface, player_screen_pos, radius=150):
         width, height = surface.get_size()
@@ -25,7 +27,6 @@ class Game:
 
         light_pos = (player_screen_pos[0] - radius, player_screen_pos[1] - radius)
         darkness.blit(light_mask, light_pos, special_flags=pygame.BLEND_RGBA_SUB)
-
         surface.blit(darkness, (0, 0))
 
     def run(self):
@@ -64,7 +65,8 @@ class Game:
 
             hp_bar = HPBar(10, 10)
             collidable_objects = pygame.sprite.Group()
-
+            spikes = pygame.sprite.Group()
+            fires = pygame.sprite.Group()
             camera = Camera(self.INTERNAL_WIDTH, self.INTERNAL_HEIGHT)
 
             tile_size = 64
@@ -73,6 +75,9 @@ class Game:
 
             maze = Maze(25, 25, tile_size, wall_img)
             collidable_objects, spikes, fires, exit_rect = maze.create_walls()
+
+            in_boss_fight = False
+            boss_map = None  # Will create when entering boss fight
 
             running = True
             while running:
@@ -84,76 +89,116 @@ class Game:
                         pygame.quit()
                         return
 
-                player.update(dt, collidable_objects)
+                if not in_boss_fight:
+                    player.update(dt, collidable_objects)
 
-                for spike in spikes:
-                    spike.update(current_time)
-                for fire in fires:
-                    fire.update(current_time)
+                    for spike in spikes:
+                        spike.update(current_time)
+                    for fire in fires:
+                        fire.update(current_time)
 
-                for spike in pygame.sprite.spritecollide(player, spikes, False, collided=lambda s1, s2: s1.hitbox.colliderect(s2.rect)):
-                    if spike.is_active():
-                        player.take_damage(10, current_time, hp_bar)
+                    for spike in pygame.sprite.spritecollide(player, spikes, False, collided=lambda s1, s2: s1.hitbox.colliderect(s2.rect)):
+                        if spike.is_active():
+                            player.take_damage(10, current_time, hp_bar)
 
-                for fire in pygame.sprite.spritecollide(player, fires, False, collided=lambda s1, s2: s1.hitbox.colliderect(s2.rect)):
-                    if fire.is_active():
-                        player.take_damage(20, current_time, hp_bar)
+                    for fire in pygame.sprite.spritecollide(player, fires, False, collided=lambda s1, s2: s1.hitbox.colliderect(s2.rect)):
+                        if fire.is_active():
+                            player.take_damage(20, current_time, hp_bar)
 
-                if player.health <= 0:
-                    game_over_text = pygame.font.SysFont(None, 48).render("Game Over!", True, (255, 0, 0))
-                    internal_surface.blit(game_over_text, (self.INTERNAL_WIDTH // 2 - 100, self.INTERNAL_HEIGHT // 2))
-                    scaled = pygame.transform.scale(internal_surface, display_surface.get_size())
-                    display_surface.blit(scaled, (0, 0))
-                    pygame.display.flip()
-                    pygame.time.wait(2000)
-                    pygame.mixer.music.stop()
-                    pygame.mixer.music.load(self.MENU_MUSIC)
-                    pygame.mixer.music.play(-1)
-                    player.footsteep_sound.stop()
-                    break
+                    if player.health <= 0:
+                        self.display_end_text(internal_surface, display_surface, "Game Over!", (255, 0, 0))
+                        player.footsteep_sound.stop()
+                        break
 
-                if player.rect.left > exit_rect.right:
-                    win_text = pygame.font.SysFont(None, 48).render("You Escaped!", True, (0, 255, 0))
-                    internal_surface.blit(win_text, (self.INTERNAL_WIDTH // 2 - 100, self.INTERNAL_HEIGHT // 2))
-                    scaled = pygame.transform.scale(internal_surface, display_surface.get_size())
-                    display_surface.blit(scaled, (0, 0))
-                    pygame.display.flip()
-                    pygame.time.wait(2000)
-                    pygame.mixer.music.stop()
-                    pygame.mixer.music.load(self.MENU_MUSIC)
-                    pygame.mixer.music.play(-1)
-                    player.footsteep_sound.stop()
-                    break
+                    if player.rect.left > exit_rect.right:
+                        # Transition to boss fight — reset everything
+                        in_boss_fight = True
 
-                camera.update(player)
+                        # Reset player position and hitbox
+                        player.rect.topleft = (50, 50)
+                        player.hitbox.topleft = (player.rect.left + 40, player.rect.top + 32)
 
-                internal_surface.fill((30, 30, 30))
+                        # Reset camera
+                        camera = Camera(self.INTERNAL_WIDTH, self.INTERNAL_HEIGHT)
 
-                for bg in background_group:
-                    internal_surface.blit(bg.image, camera.apply(bg))
-                for wall in collidable_objects:
-                    internal_surface.blit(wall.image, camera.apply(wall))
-                for spike in spikes:
-                    spike.draw(internal_surface, camera.apply(spike).topleft)
-                for fire in fires:
-                    fire.draw(internal_surface, camera.apply(fire).topleft)
-                for sprite in all_sprites:
-                    internal_surface.blit(sprite.image, camera.apply(sprite))
+                        # Create fresh boss map and boss
+                        boss_map = BossMap(500, 500)
 
-                player_screen_pos = camera.apply(player).center
-                self.draw_light_effect(internal_surface, player_screen_pos, radius=150)
+                        # Clear maze-related sprite groups
+                        collidable_objects.empty()
+                        spikes.empty()
+                        fires.empty()
+                        all_sprites.empty()
+                        all_sprites.add(player)
 
-                hp_bar.draw(internal_surface)
+                        # Load boss music
+                        pygame.mixer.music.stop()
+                        pygame.mixer.music.load(self.BOSS_MUSIC)
+                        pygame.mixer.music.play(-1)
 
-                # Scale and blit
-                win_w, win_h = display_surface.get_size()
-                scale = min(win_w / self.INTERNAL_WIDTH, win_h / self.INTERNAL_HEIGHT)
-                scaled_w = int(self.INTERNAL_WIDTH * scale)
-                scaled_h = int(self.INTERNAL_HEIGHT * scale)
-                x_offset = (win_w - scaled_w) // 2
-                y_offset = (win_h - scaled_h) // 2
+                        continue
 
-                scaled_surface = pygame.transform.scale(internal_surface, (scaled_w, scaled_h))
-                display_surface.fill((0, 0, 0))
-                display_surface.blit(scaled_surface, (x_offset, y_offset))
-                pygame.display.flip()
+                    camera.update(player)
+                    internal_surface.fill((30, 30, 30))
+
+                    for bg in background_group:
+                        internal_surface.blit(bg.image, camera.apply(bg))
+                    for wall in collidable_objects:
+                        internal_surface.blit(wall.image, camera.apply(wall))
+                    for spike in spikes:
+                        spike.draw(internal_surface, camera.apply(spike).topleft)
+                    for fire in fires:
+                        fire.draw(internal_surface, camera.apply(fire).topleft)
+                    for sprite in all_sprites:
+                        internal_surface.blit(sprite.image, camera.apply(sprite))
+
+                    player_screen_pos = camera.apply(player).center
+                    self.draw_light_effect(internal_surface, player_screen_pos, radius=150)
+                    hp_bar.draw(internal_surface)
+                else:
+                    # Boss fight update & draw
+                    player.update(dt, pygame.sprite.Group())  # No maze collisions
+                    boss_map.update(dt, current_time, player, hp_bar)
+                    camera.update(player)
+
+                    internal_surface.fill((0, 0, 0))
+                    boss_map.draw(internal_surface, camera)
+                    internal_surface.blit(player.image, camera.apply(player))
+                    hp_bar.draw(internal_surface)
+
+                    if player.health <= 0:
+                        self.display_end_text(internal_surface, display_surface, "Game Over!", (255, 0, 0))
+                        player.footsteep_sound.stop()
+                        break
+
+                    if not boss_map.boss.alive:
+                        self.display_end_text(internal_surface, display_surface, "You Defeated the Boss!", (0, 255, 0))
+                        player.footsteep_sound.stop()
+                        break
+
+                self.scale_and_blit(display_surface, internal_surface)
+
+    def display_end_text(self, surface, display_surface, text, color):
+        font = pygame.font.SysFont(None, 48)
+        message = font.render(text, True, color)
+        surface.blit(message, (self.INTERNAL_WIDTH // 2 - 150, self.INTERNAL_HEIGHT // 2))
+        scaled = pygame.transform.scale(surface, display_surface.get_size())
+        display_surface.blit(scaled, (0, 0))
+        pygame.display.flip()
+        pygame.time.wait(2000)
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load(self.MENU_MUSIC)
+        pygame.mixer.music.play(-1)
+
+    def scale_and_blit(self, display_surface, internal_surface):
+        win_w, win_h = display_surface.get_size()
+        scale = min(win_w / self.INTERNAL_WIDTH, win_h / self.INTERNAL_HEIGHT)
+        scaled_w = int(self.INTERNAL_WIDTH * scale)
+        scaled_h = int(self.INTERNAL_HEIGHT * scale)
+        x_offset = (win_w - scaled_w) // 2
+        y_offset = (win_h - scaled_h) // 2
+
+        scaled_surface = pygame.transform.scale(internal_surface, (scaled_w, scaled_h))
+        display_surface.fill((0, 0, 0))
+        display_surface.blit(scaled_surface, (x_offset, y_offset))
+        pygame.display.flip()
