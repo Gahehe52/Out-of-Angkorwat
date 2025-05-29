@@ -1,5 +1,7 @@
 import pygame
 import os
+import math
+from boss import PlayerProjectile
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -23,11 +25,15 @@ class Player(pygame.sprite.Sprite):
         self.__speed = 200
         self.health = 100
 
-        # Invincibility (replaces damage cooldown)
+        # Invincibility
         self.last_hit_time = 0
         self.invincibility_duration = 1000  # ms
         self.invincible = False
         self.invincible_timer = 0
+
+        # Spear
+        self.has_spear = False
+        self.throw_cooldown = 0
 
     def load_frames(self, folder):
         self.frames = {"down": [], "up": [], "left": [], "right": []}
@@ -40,7 +46,7 @@ class Player(pygame.sprite.Sprite):
                     self.frames[direction].append(img)
 
     def update(self, dt, *args):
-        collisions = args[0] if args else None
+        collisions = args[0] if len(args) > 0 else None
         keys = pygame.key.get_pressed()
         dx = dy = 0
 
@@ -97,6 +103,9 @@ class Player(pygame.sprite.Sprite):
         else:
             self.image.set_alpha(255)
 
+        # Cooldown timer
+        self.throw_cooldown = max(0, self.throw_cooldown - dt)
+
     def animate(self, dt):
         self.animation_timer += dt
         if self.animation_timer >= self.frame_rate:
@@ -117,3 +126,17 @@ class Player(pygame.sprite.Sprite):
                 print("Game Over!")
 
             print(f"Player health: {self.health}")
+
+    def throw_spear(self, player, projectile_group):
+        direction = pygame.Vector2(0, 0)
+        if player.direction == "up":
+            direction = pygame.Vector2(0, -1)
+        elif player.direction == "down":
+            direction = pygame.Vector2(0, 1)
+        elif player.direction == "left":
+            direction = pygame.Vector2(-1, 0)
+        elif player.direction == "right":
+            direction = pygame.Vector2(1, 0)
+
+        proj = PlayerProjectile(player.rect.centerx, player.rect.centery, direction)
+        projectile_group.add(proj)

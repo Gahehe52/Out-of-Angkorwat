@@ -13,7 +13,7 @@ class Game:
         self.FPS = 60
         self.MENU_MUSIC = "bgm/puzzle-game-bright-casual-video-game-music-249202.mp3"
         self.GAME_MUSIC = "bgm/background_music.mp3"
-        self.BOSS_MUSIC = "bgm/boss_music.mp3"  # Add this file to your project
+        self.BOSS_MUSIC = "bgm/boss_music.mp3"
 
     def draw_light_effect(self, surface, player_screen_pos, radius=150):
         width, height = surface.get_size()
@@ -77,7 +77,8 @@ class Game:
             collidable_objects, spikes, fires, exit_rect = maze.create_walls()
 
             in_boss_fight = False
-            boss_map = None  # Will create when entering boss fight
+            boss_map = None
+            player_projectiles = pygame.sprite.Group()
 
             running = True
             while running:
@@ -111,31 +112,20 @@ class Game:
                         break
 
                     if player.rect.left > exit_rect.right:
-                        # Transition to boss fight — reset everything
                         in_boss_fight = True
-
-                        # Reset player position and hitbox
                         player.rect.topleft = (50, 50)
                         player.hitbox.topleft = (player.rect.left + 40, player.rect.top + 32)
-
-                        # Reset camera
                         camera = Camera(self.INTERNAL_WIDTH, self.INTERNAL_HEIGHT)
-
-                        # Create fresh boss map and boss
-                        boss_map = BossMap(500, 500)
-
-                        # Clear maze-related sprite groups
+                        boss_map = BossMap()
                         collidable_objects.empty()
                         spikes.empty()
                         fires.empty()
                         all_sprites.empty()
                         all_sprites.add(player)
 
-                        # Load boss music
                         pygame.mixer.music.stop()
                         pygame.mixer.music.load(self.BOSS_MUSIC)
                         pygame.mixer.music.play(-1)
-
                         continue
 
                     camera.update(player)
@@ -156,13 +146,17 @@ class Game:
                     self.draw_light_effect(internal_surface, player_screen_pos, radius=150)
                     hp_bar.draw(internal_surface)
                 else:
-                    # Boss fight update & draw
-                    player.update(dt, pygame.sprite.Group())  # No maze collisions
-                    boss_map.update(dt, current_time, player, hp_bar)
+                    player.update(dt, pygame.sprite.Group())
+                    player_projectiles.update(dt)
+                    boss_map.update(dt, current_time, player, hp_bar, player_projectiles)
                     camera.update(player)
 
                     internal_surface.fill((0, 0, 0))
                     boss_map.draw(internal_surface, camera)
+
+                    for proj in player_projectiles:
+                        internal_surface.blit(proj.image, camera.apply(proj))
+
                     internal_surface.blit(player.image, camera.apply(player))
                     hp_bar.draw(internal_surface)
 

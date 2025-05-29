@@ -13,3 +13,6 @@ class Camera:
 
     def apply(self, target):
         return target.rect.move(-self.offset.x, -self.offset.y)
+
+    def apply_rect(self, rect):
+        return rect.move(-self.offset.x, -self.offset.y)
