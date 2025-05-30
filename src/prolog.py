@@ -18,14 +18,22 @@ class Prolog:
 
     def draw_text_box(self, text):
         box_rect = pygame.Rect(50, 450, 700, 120)
-        text_surface = self.font.render(text, True, self.text_color)
-
-        # Background for text
+        
+        # Create background box with transparency
         box_surf = pygame.Surface((box_rect.width, box_rect.height), pygame.SRCALPHA)
         box_surf.fill(self.box_color)
-
         self.internal_surface.blit(box_surf, box_rect.topleft)
-        self.internal_surface.blit(text_surface, (box_rect.left + 20, box_rect.top + 40))
+
+        # Render main dialogue text
+        text_surface = self.font.render(text, True, self.text_color)
+        self.internal_surface.blit(text_surface, (box_rect.left + 20, box_rect.top + 20))
+
+        # Render "Press 'Space' to continue" in smaller font
+        prompt_font = pygame.font.SysFont("arial", 18)
+        prompt_text = prompt_font.render("Press 'Space' to continue", True, self.text_color)
+        prompt_rect = prompt_text.get_rect(bottomright=(box_rect.right - 20, box_rect.bottom - 10))
+        self.internal_surface.blit(prompt_text, prompt_rect)
+
 
     def run(self):
         running = True
