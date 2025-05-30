@@ -6,6 +6,8 @@ from menu import Menu
 from maze import Maze
 from hpbar import HPBar
 from boss_map import BossMap
+from cutscene import Cutscene
+from end_cutscene import EndCutscene  # ✅ NEW IMPORT
 
 class Game:
     def __init__(self):
@@ -48,9 +50,12 @@ class Game:
                 pygame.quit()
                 return
 
-            pygame.mixer.music.stop()
-            pygame.mixer.music.load(self.GAME_MUSIC)
-            pygame.mixer.music.play(-1)
+            def start_game_after_cutscene():
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(self.GAME_MUSIC)
+                pygame.mixer.music.play(-1)
+
+            Cutscene(display_surface, start_game_after_cutscene).run()
 
             internal_surface = pygame.Surface((self.INTERNAL_WIDTH, self.INTERNAL_HEIGHT))
 
@@ -166,8 +171,14 @@ class Game:
                         break
 
                     if not boss_map.boss.alive:
-                        self.display_end_text(internal_surface, display_surface, "You Defeated the Boss!", (0, 255, 0))
                         player.footsteep_sound.stop()
+
+                        def return_to_menu():
+                            pygame.mixer.music.stop()
+                            pygame.mixer.music.load(self.MENU_MUSIC)
+                            pygame.mixer.music.play(-1)
+
+                        EndCutscene(display_surface, return_to_menu).run()  # ✅ RUN END CUTSCENE
                         break
 
                 self.scale_and_blit(display_surface, internal_surface)
