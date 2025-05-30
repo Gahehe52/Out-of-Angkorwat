@@ -21,8 +21,11 @@ class Entity(ABC, pygame.sprite.Sprite):
         self.health = 100
         self.max_health = 100
         self.alive = True
-    
+
     @abstractmethod
+    def update(self):
+        pass
+    
     def load_frames(self, folder):
         for direction in self.frames:
             path = os.path.join(folder, direction)
