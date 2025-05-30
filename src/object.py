@@ -1,15 +1,27 @@
 import pygame
 import time
 
-class Object(pygame.sprite.Sprite):
-    def __init__(self, x, y, image):
+class GameObject(pygame.sprite.Sprite):
+    def __init__(self, x, y):
         super().__init__()
+        self.x = x
+        self.y = y
+        self.image = None
+        self.rect = None
+
+    def draw(self, screen, pos=None):
+        if self.image:
+            screen.blit(self.image, pos or self.rect.topleft)
+
+class Object(GameObject):
+    def __init__(self, x, y, image):
+        super().__init__(x, y)
         self.image = image
         self.rect = self.image.get_rect(topleft=(x, y))
 
-class AnimatedObject(pygame.sprite.Sprite):
+class AnimatedObject(GameObject):
     def __init__(self, x, y, images, frame_duration=150, invisible_duration=1500):
-        super().__init__()
+        super().__init__(x, y)
         self.images = images
         self.index = 0
         self.forward = True
@@ -58,9 +70,9 @@ class AnimatedObject(pygame.sprite.Sprite):
 
             self.image = self.images[self.index]
 
-    def draw(self, screen, pos):
+    def draw(self, screen, pos=None):
         if self.visible:
-            screen.blit(self.image, pos)
+            screen.blit(self.image, pos or self.rect.topleft)
 
     def is_active(self):
         return self.visible

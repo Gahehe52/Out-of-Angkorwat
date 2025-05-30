@@ -1,52 +1,27 @@
 import pygame
-import os
-import math
+from entity import Entity
 from boss import PlayerProjectile
 
-class Player(pygame.sprite.Sprite):
+class Player(Entity):
     def __init__(self, x, y):
-        super().__init__()
-        self.load_frames("assets/player")
-        self.direction = "down"
-        self.current_frame = 0
-        self.animation_timer = 0
-        self.frame_rate = 0.1
-        self.image = self.frames[self.direction][self.current_frame]
-        self.rect = self.image.get_rect(topleft=(x, y))
+        super().__init__(x, y, "assets/player", 96)
+        self.__speed = 200
+        self.hitbox = pygame.Rect(self.rect.left + 40, self.rect.top + 32, 16, 32)
 
         self.footsteep_sound = pygame.mixer.Sound("bgm/sfx/footstep.wav")
         self.footsteep_sound.set_volume(0.5)
         self.footsteep_playing = False
 
-        # Smaller hitbox
-        self.hitbox = pygame.Rect(self.rect.left + 40, self.rect.top + 32, 16, 32)
-
-        # Movement and health
-        self.__speed = 200
-        self.health = 100
-
-        # Invincibility
-        self.last_hit_time = 0
-        self.invincibility_duration = 1000  # ms
         self.invincible = False
+        self.last_hit_time = 0
         self.invincible_timer = 0
+        self.invincibility_duration = 1000
 
-        # Spear
         self.has_spear = False
         self.throw_cooldown = 0
 
-    def load_frames(self, folder):
-        self.frames = {"down": [], "up": [], "left": [], "right": []}
-        for direction in self.frames:
-            path = os.path.join(folder, direction)
-            for filename in sorted(os.listdir(path)):
-                if filename.endswith(".png"):
-                    img = pygame.image.load(os.path.join(path, filename)).convert_alpha()
-                    img = pygame.transform.scale(img, (96, 96))
-                    self.frames[direction].append(img)
-
     def update(self, dt, *args):
-        collisions = args[0] if len(args) > 0 else None
+        collisions = args[0] if args else None
         keys = pygame.key.get_pressed()
         dx = dy = 0
 
@@ -63,7 +38,7 @@ class Player(pygame.sprite.Sprite):
             dy = self.__speed * dt
             self.direction = "down"
 
-        # Move and handle collisions
+        # Move and collision
         self.rect.x += dx
         self.hitbox.x += dx
         if collisions:
@@ -93,50 +68,40 @@ class Player(pygame.sprite.Sprite):
                 self.footsteep_playing = False
 
         # Invincibility flicker
-        current_time = pygame.time.get_ticks()
+        now = pygame.time.get_ticks()
         if self.invincible:
-            if current_time - self.invincible_timer >= self.invincibility_duration:
+            if now - self.invincible_timer >= self.invincibility_duration:
                 self.invincible = False
                 self.image.set_alpha(255)
             else:
-                self.image.set_alpha(0 if (current_time // 100) % 2 == 0 else 255)
+                self.image.set_alpha(0 if (now // 100) % 2 == 0 else 255)
         else:
             self.image.set_alpha(255)
 
-        # Cooldown timer
         self.throw_cooldown = max(0, self.throw_cooldown - dt)
-
-    def animate(self, dt):
-        self.animation_timer += dt
-        if self.animation_timer >= self.frame_rate:
-            self.animation_timer = 0
-            self.current_frame = (self.current_frame + 1) % len(self.frames[self.direction])
-            self.image = self.frames[self.direction][self.current_frame]
 
     def take_damage(self, damage_amount, current_time, hp_bar):
         if current_time - self.last_hit_time >= self.invincibility_duration:
-            self.health -= damage_amount
+            super().take_damage(damage_amount)
             hp_bar.reduce(damage_amount)
             self.last_hit_time = current_time
             self.invincible = True
             self.invincible_timer = current_time
 
             if self.health <= 0:
-                self.health = 0
                 print("Game Over!")
 
-            print(f"Player health: {self.health}")
-
-    def throw_spear(self, player, projectile_group):
-        direction = pygame.Vector2(0, 0)
-        if player.direction == "up":
-            direction = pygame.Vector2(0, -1)
-        elif player.direction == "down":
-            direction = pygame.Vector2(0, 1)
-        elif player.direction == "left":
-            direction = pygame.Vector2(-1, 0)
-        elif player.direction == "right":
-            direction = pygame.Vector2(1, 0)
-
-        proj = PlayerProjectile(player.rect.centerx, player.rect.centery, direction)
+    def throw_spear(self, projectile_group):
+        if self.throw_cooldown > 0 or not self.has_spear:
+            return
+        dir_map = {
+            "up": pygame.Vector2(0, -1),
+            "down": pygame.Vector2(0, 1),
+            "left": pygame.Vector2(-1, 0),
+            "right": pygame.Vector2(1, 0)
+        }
+        direction = dir_map[self.direction]
+        proj = PlayerProjectile(self.rect.centerx, self.rect.centery, direction)
         projectile_group.add(proj)
+        self.has_spear = False
+        self.throw_cooldown = 1  # 1 second cooldown
