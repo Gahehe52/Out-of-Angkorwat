@@ -7,7 +7,8 @@ from maze import Maze
 from hpbar import HPBar
 from boss_map import BossMap
 from cutscene import Cutscene
-from end_cutscene import EndCutscene  # ✅ NEW IMPORT
+from end_cutscene import EndCutscene
+from prolog import Prolog  # ✅ NEW IMPORT
 
 class Game:
     def __init__(self):
@@ -16,6 +17,8 @@ class Game:
         self.MENU_MUSIC = "bgm/puzzle-game-bright-casual-video-game-music-249202.mp3"
         self.GAME_MUSIC = "bgm/background_music.mp3"
         self.BOSS_MUSIC = "bgm/boss_music.mp3"
+        self.NOISES = "bgm/sfx/crowd-noise.mp3"
+        self.FOOTSTEPS = "bgm/sfx/footstep.wav"
 
     def draw_light_effect(self, surface, player_screen_pos, radius=150):
         width, height = surface.get_size()
@@ -50,11 +53,25 @@ class Game:
                 pygame.quit()
                 return
 
+            prolog_dialogue = [
+                "In the heart of Cambodia lies a forgotten temple...",
+                "Few dare to enter the ruins of Angkorwat.",
+                "But tonight, destiny awaits one brave soul..."
+            ]
+            pygame.mixer.music.stop()
+            # Show prolog first
+            pygame.mixer.music.load(self.NOISES)
+            pygame.mixer.music.play(-1)
+            Prolog(display_surface, prolog_dialogue, "intro_background.png").run()
+
             def start_game_after_cutscene():
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load(self.GAME_MUSIC)
                 pygame.mixer.music.play(-1)
 
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load(self.FOOTSTEPS)
+            pygame.mixer.music.play(-1)
             Cutscene(display_surface, start_game_after_cutscene).run()
 
             internal_surface = pygame.Surface((self.INTERNAL_WIDTH, self.INTERNAL_HEIGHT))
@@ -178,7 +195,10 @@ class Game:
                             pygame.mixer.music.load(self.MENU_MUSIC)
                             pygame.mixer.music.play(-1)
 
-                        EndCutscene(display_surface, return_to_menu).run()  # ✅ RUN END CUTSCENE
+                        pygame.mixer.music.stop()
+                        pygame.mixer.music.load(self.FOOTSTEPS)
+                        pygame.mixer.music.play(-1)
+                        EndCutscene(display_surface, return_to_menu).run()
                         break
 
                 self.scale_and_blit(display_surface, internal_surface)

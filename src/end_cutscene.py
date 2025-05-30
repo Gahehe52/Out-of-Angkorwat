@@ -2,13 +2,15 @@ import pygame
 
 class EndCutscene:
     def __init__(self, surface, on_complete):
-        self.surface = surface
+        self.display_surface = surface
+        self.INTERNAL_WIDTH, self.INTERNAL_HEIGHT = 800, 600
+        self.internal_surface = pygame.Surface((self.INTERNAL_WIDTH, self.INTERNAL_HEIGHT))
         self.on_complete = on_complete
         self.clock = pygame.time.Clock()
 
         # Load background image
         self.background = pygame.image.load("assets/backgrounds/cutscene_background.png").convert()
-        self.background = pygame.transform.scale(self.background, (800, 600))
+        self.background = pygame.transform.scale(self.background, (self.INTERNAL_WIDTH, self.INTERNAL_HEIGHT))
 
         # Load downward walking animation frames
         self.frames = []
@@ -29,7 +31,7 @@ class EndCutscene:
         self.frame_timer = 0
         self.frame_duration = 0.1
 
-        self.x = 400 - 48  # center horizontally
+        self.x = self.INTERNAL_WIDTH // 2 - 48  # center horizontally
         self.y = -96       # start above the screen
         self.speed = 100   # pixels per second
 
@@ -45,7 +47,7 @@ class EndCutscene:
 
             # Move player down
             self.y += self.speed * dt
-            if self.y > 600:  # completely off the bottom
+            if self.y > self.INTERNAL_HEIGHT:  # completely off the bottom
                 running = False
                 self.on_complete()
                 return
@@ -56,7 +58,19 @@ class EndCutscene:
                 self.frame_timer = 0
                 self.current_frame = (self.current_frame + 1) % len(self.frames)
 
-            # Draw
-            self.surface.blit(self.background, (0, 0))
-            self.surface.blit(self.frames[self.current_frame], (self.x, self.y))
+            # Draw to internal surface
+            self.internal_surface.blit(self.background, (0, 0))
+            self.internal_surface.blit(self.frames[self.current_frame], (self.x, self.y))
+
+            # Scale internal surface to match display size
+            win_w, win_h = self.display_surface.get_size()
+            scale = min(win_w / self.INTERNAL_WIDTH, win_h / self.INTERNAL_HEIGHT)
+            scaled_w = int(self.INTERNAL_WIDTH * scale)
+            scaled_h = int(self.INTERNAL_HEIGHT * scale)
+            x_offset = (win_w - scaled_w) // 2
+            y_offset = (win_h - scaled_h) // 2
+
+            scaled_surface = pygame.transform.scale(self.internal_surface, (scaled_w, scaled_h))
+            self.display_surface.fill((0, 0, 0))
+            self.display_surface.blit(scaled_surface, (x_offset, y_offset))
             pygame.display.flip()
