@@ -11,7 +11,7 @@ class BossMap:
         self.width = width
         self.height = height
 
-        self.background = pygame.image.load("assets/tiles/boss_background.png").convert()
+        self.background = pygame.image.load("assets/backgrounds/boss_background.png").convert()
         self.background = pygame.transform.scale(self.background, (width, height))
 
         self.wall_image = pygame.image.load("assets/tiles/wall.png").convert_alpha()
