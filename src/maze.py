@@ -43,8 +43,6 @@ class Maze:
             else:
                 stack.pop()
 
-        maze[1][0] = 0  # Fixed entrance
-
         # Create an exit on the right wall
         right_edge_options = []
         for y in range(1, self.rows - 1):
@@ -61,7 +59,12 @@ class Maze:
 
         # Obstacles
         path_cells = [(y, x) for y in range(self.rows) for x in range(self.cols) if maze[y][x] == 0]
-        path_cells.remove((1, 0))
+
+        # Prevent traps at the player's start (1,1)
+        if (1, 1) in path_cells:
+            path_cells.remove((1, 1))
+
+        # Prevent trap at exit
         if 'ey' in locals() and (ey, ex) in path_cells:
             path_cells.remove((ey, ex))
 

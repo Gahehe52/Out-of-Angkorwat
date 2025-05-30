@@ -66,7 +66,7 @@ class Boss(pygame.sprite.Sprite):
 
         self.projectiles = pygame.sprite.Group()
         self.last_attack_time = 0
-        self.attack_interval = 2000  # ms
+        self.attack_interval = 2000  
         self.target_pos = pygame.Vector2(x, y)
         self.move_timer = 0
 

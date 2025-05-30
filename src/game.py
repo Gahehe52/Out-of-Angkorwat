@@ -54,9 +54,12 @@ class Game:
                 return
 
             prolog_dialogue = [
-                "In the heart of Cambodia lies a forgotten temple...",
-                "Few dare to enter the ruins of Angkorwat.",
-                "But tonight, destiny awaits one brave soul..."
+                "Suatu hari, di perjalanan wisata sekolah...",
+                "Guru: Anak-anak, kita sudah sampai di Angkorwat, silahkan turun...",
+                "Guru: Dan ingat, JANGAN MASUK KE BAGIAN KUIL YANG TERBENGKALAI!",
+                "Leyberg: *dalam hati* Apaan sih, masa udah bayar wisata ga boleh masuk?",
+                "Leyberg: *dalam hati* Lagian emang kenapa sih kalau masuk? Ada Golem?",
+                "Leyberg: *dalam hati* Gak mungkin lah! Bodo ah, masuk aja!"
             ]
             pygame.mixer.music.stop()
             # Show prolog first
@@ -174,7 +177,7 @@ class Game:
                     camera.update(player)
 
                     internal_surface.fill((0, 0, 0))
-                    boss_map.draw(internal_surface, camera)
+                    boss_map.draw(internal_surface, camera, player)
 
                     for proj in player_projectiles:
                         internal_surface.blit(proj.image, camera.apply(proj))
@@ -190,6 +193,14 @@ class Game:
                     if not boss_map.boss.alive:
                         player.footsteep_sound.stop()
 
+                        # Show victory message
+                        self.display_end_text(
+                            internal_surface,
+                            display_surface,
+                            "You Win!\nYou've Defeated Goru",
+                            (0, 255, 0)
+                        )
+
                         def return_to_menu():
                             pygame.mixer.music.stop()
                             pygame.mixer.music.load(self.MENU_MUSIC)
@@ -201,19 +212,23 @@ class Game:
                         EndCutscene(display_surface, return_to_menu).run()
                         break
 
+
                 self.scale_and_blit(display_surface, internal_surface)
 
     def display_end_text(self, surface, display_surface, text, color):
         font = pygame.font.SysFont(None, 48)
-        message = font.render(text, True, color)
-        surface.blit(message, (self.INTERNAL_WIDTH // 2 - 150, self.INTERNAL_HEIGHT // 2))
+        lines = text.split("\n")
+        surface.fill((0, 0, 0))  # Clear the screen
+
+        for i, line in enumerate(lines):
+            message = font.render(line, True, color)
+            text_rect = message.get_rect(center=(self.INTERNAL_WIDTH // 2, self.INTERNAL_HEIGHT // 2 + i * 50))
+            surface.blit(message, text_rect)
+
         scaled = pygame.transform.scale(surface, display_surface.get_size())
         display_surface.blit(scaled, (0, 0))
         pygame.display.flip()
-        pygame.time.wait(2000)
-        pygame.mixer.music.stop()
-        pygame.mixer.music.load(self.MENU_MUSIC)
-        pygame.mixer.music.play(-1)
+        pygame.time.wait(2500)
 
     def scale_and_blit(self, display_surface, internal_surface):
         win_w, win_h = display_surface.get_size()

@@ -1,8 +1,6 @@
 import pygame
 import random
-from boss import Boss
-from boss import Spear
-from boss import PlayerProjectile
+from boss import Boss, Spear, PlayerProjectile
 
 class BossMap:
     TILE_SIZE = 64
@@ -26,9 +24,12 @@ class BossMap:
         self.last_spear_spawn_time = 0
         self.spear_spawn_interval = 10000  # ms
 
-        # For throwing
         self.throw_cooldown = 500  # ms
         self.last_throw_time = 0
+
+        # Font for displaying "Press E" text
+        self.font = pygame.font.Font(None, 32)
+        self.text_color = (255, 255, 255)
 
     def create_walls(self):
         walls = []
@@ -111,13 +112,12 @@ class BossMap:
         proj = PlayerProjectile(player.rect.centerx, player.rect.centery, direction)
         projectile_group.add(proj)
 
-
     def spawn_spear(self):
         x = random.randint(100, self.width - 100)
         y = random.randint(100, self.height - 100)
         self.spear = Spear(x, y)
 
-    def draw(self, screen, camera, debug=False):
+    def draw(self, screen, camera, player, debug=False):
         self.surface.blit(self.background, (0, 0))
         for wall_pos in self.walls:
             self.surface.blit(self.wall_image, wall_pos)
@@ -126,3 +126,9 @@ class BossMap:
         self.boss.draw(screen, camera, debug)
         if self.spear:
             self.spear.draw(screen, camera)
+
+        # Draw spear usage text if player has it
+        if player.has_spear:
+            text_surface = self.font.render('Press "E" to throw spear', True, self.text_color)
+            text_rect = text_surface.get_rect(midbottom=(screen.get_width() // 2, screen.get_height() - 20))
+            screen.blit(text_surface, text_rect)
